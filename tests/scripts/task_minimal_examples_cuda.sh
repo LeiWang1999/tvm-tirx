@@ -18,13 +18,8 @@
 
 set -euxo pipefail
 
-if [[ $# -ne 1 || ( "$1" != cpu && "$1" != cuda ) ]]; then
-    echo "Usage: $0 cpu|cuda" >&2
-    exit 1
-fi
-
 # Keep this explicit list limited to examples that run in a few seconds.
 examples=(examples/quick_start)
 for example in "${examples[@]}"; do
-    uv run --no-sync bash "${example}/run_all_$1.sh"
+    uv run --no-sync bash "${example}/run_all_cuda.sh"
 done

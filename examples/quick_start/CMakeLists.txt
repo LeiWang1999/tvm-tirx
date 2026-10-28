@@ -40,10 +40,5 @@ find_package(tvm_tirx CONFIG REQUIRED)
 
 # Load add_one_cpu.so from C++ using only the runtime libraries.
 add_executable(load_cpp load_cpp.cc)
-# load_cpp never calls the TIRx runtime directly; keep it linked so that it is
-# loaded at startup and can run the exported module.
-if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  target_link_options(load_cpp PRIVATE "LINKER:--no-as-needed")
-endif ()
 target_link_libraries(load_cpp PRIVATE tvm_runtime::shared tvm_ffi::shared)
 set_target_properties(load_cpp PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")

@@ -20,26 +20,18 @@
 // [main.begin]
 #include <tvm/ffi/extra/module.h>
 #include <tvm/ffi/tvm_ffi.h>
+#include <tvm/runtime/tensor.h>
 
-#include <cstdlib>
 #include <iostream>
 
 namespace ffi = tvm::ffi;
 
-// TIRx kernels require 64-byte aligned tensor data for performance.
-struct CPUAllocator {
-  void AllocData(DLTensor* tensor) {
-    size_t bytes = (tensor->shape[0] * sizeof(float) + 63) / 64 * 64;
-    tensor->data = std::aligned_alloc(64, bytes);
-  }
-  void FreeData(DLTensor* tensor) { std::free(tensor->data); }
-};
-
 int main() {
   DLDataType f32{kDLFloat, 32, 1};
   DLDevice cpu{kDLCPU, 0};
-  ffi::Tensor a = ffi::Tensor::FromNDAlloc(CPUAllocator(), {10}, f32, cpu);
-  ffi::Tensor b = ffi::Tensor::FromNDAlloc(CPUAllocator(), {10}, f32, cpu);
+  // The runtime allocator provides the alignment required by TIRx kernels.
+  ffi::Tensor a = tvm::runtime::Empty({10}, f32, cpu);
+  ffi::Tensor b = tvm::runtime::Empty({10}, f32, cpu);
   float* a_data = static_cast<float*>(a.data_ptr());
   for (int i = 0; i < 10; ++i) a_data[i] = static_cast<float>(i);
 

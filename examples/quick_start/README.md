@@ -31,7 +31,7 @@ This directory contains all the source code for the
 
 ```bash
 pip install apache-tvm-tirx torch
-bash run_all_cpu.sh        # on Windows: run_all_cpu.bat (Python steps only)
+bash run_all_cpu.sh        # on Windows: run_all_cpu.bat
 
 # needs an NVIDIA GPU with CUDA 13 or newer
 pip install "apache-tvm-tirx[cuda]"

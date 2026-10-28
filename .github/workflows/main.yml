@@ -72,10 +72,11 @@ jobs:
           uv pip install --no-deps --force-reinstall dist/apache_tvm_tirx-*.whl
       - name: Test
         shell: bash
-        run: >-
-          uv run --no-sync python -m pytest -v tests/python/codegen/llvm/test_minimal.py
-          tests/python/runtime/test_validate_wheel_library.py tests/python/script
-          tests/python/ir/test_op_rust.py
+        run: |
+          uv run --no-sync python -m pytest -v tests/python/codegen/llvm/test_minimal.py \
+            tests/python/runtime/test_validate_wheel_library.py tests/python/script \
+            tests/python/ir/test_op_rust.py
+          ./tests/scripts/task_minimal_examples_cpu.sh
       - name: Rust tests
         timeout-minutes: 20
         shell: bash
@@ -127,10 +128,11 @@ jobs:
           )
       - name: Test
         shell: cmd /C call {0}
-        run: >-
-          uv run --no-sync python -m pytest -v tests/python/codegen/llvm/test_minimal.py
-          tests/python/runtime/test_validate_wheel_library.py tests/python/script
-          tests/python/ir/test_op_rust.py
+        run: |
+          uv run --no-sync python -m pytest -v tests/python/codegen/llvm/test_minimal.py ^
+            tests/python/runtime/test_validate_wheel_library.py tests/python/script ^
+            tests/python/ir/test_op_rust.py || exit /b 1
+          call tests\scripts\task_minimal_examples_cpu.bat || exit /b 1
       - name: Rust tests
         timeout-minutes: 20
         shell: cmd /C call {0}

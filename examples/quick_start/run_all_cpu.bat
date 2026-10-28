@@ -28,4 +28,11 @@ python load_add_one_cpu.py || exit /b 1
 rem Inspect add_one and specialize it to 128 elements
 python inspect_and_transform.py || exit /b 1
 
+rem Load add_one_cpu.so from C++ using only the runtime libraries.
+cmake . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO="%CD%\build" || exit /b 1
+cmake --build build --config RelWithDebInfo || exit /b 1
+for /f "delims=" %%d in ('python -m tvm_tirx.config --libdir') do set "PATH=%%d;%PATH%"
+for /f "delims=" %%d in ('python -m tvm_ffi.config --libdir') do set "PATH=%%d;%PATH%"
+build\load_cpp.exe || exit /b 1
+
 endlocal
