@@ -375,7 +375,8 @@ def _linux_compile(
 
 def _windows_compile(output, objects, options, cwd=None, ccache_env=None):
     compiler = os.getenv("TVM_TIRX_WIN_CC", default="clang")
-    win_target = os.getenv("TVM_TIRX_WIN_TARGET", default="x86_64")
+    # Match the MSVC ABI used by native Windows LLVM objects and import libraries.
+    win_target = os.getenv("TVM_TIRX_WIN_TARGET", default="x86_64-pc-windows-msvc")
     cmd = [compiler]
     cmd += ["-O2"]
     cmd += ["--target=" + win_target]

@@ -18,6 +18,7 @@
 
 import json
 import os
+import sys
 from collections.abc import Callable
 from typing import Any
 
@@ -279,6 +280,10 @@ class Executable:
                 fcompile = _tar.tar
             else:
                 fcompile = _cc.create_shared
+
+        if sys.platform == "win32" and fcompile is _cc.create_shared:
+            # Windows DLLs must resolve generated FFI calls through the import library.
+            files.append(tvm_ffi_libinfo.find_windows_implib())
 
         if llvm_target is None and hasattr(fcompile, "get_target_triple"):
             triple = fcompile.get_target_triple()

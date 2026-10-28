@@ -22,6 +22,7 @@ import pytest
 import tvm_tirx
 import tvm_tirx.testing
 from tvm_tirx.script import tirx as T
+from tvm_tirx.support import cc
 from tvm_tirx.testing import env
 
 
@@ -55,6 +56,32 @@ def test_llvm_add_pipeline():
     c = tvm_tirx.runtime.tensor(np.zeros(128, dtype="float32"), dev)
     kernel(a, b, c)
     tvm_tirx.testing.assert_allclose(c.numpy(), a.numpy() + b.numpy())
+
+
+@pytest.mark.skipif(not env.has_llvm(), reason="need llvm")
+@pytest.mark.parametrize("fcompile", [None, cc.create_shared])
+def test_llvm_export_and_reload(tmp_path, fcompile):
+    n = T.dynamic("n")
+
+    @T.function
+    def add_one(A: T.Tensor((n,), "float32"), B: T.Tensor((n,), "float32")):
+        for i in range(n):
+            B[i] = A[i] + 1
+
+    kernel = tvm_tirx.compile(add_one, target="llvm")
+    path = tmp_path / "add_one.so"
+    kernel.export_library(path, fcompile=fcompile)
+    loaded = tvm_tirx.runtime.load_module(str(path))["add_one"]
+    dev = tvm_tirx.cpu(0)
+    a = tvm_tirx.runtime.tensor(np.arange(10, dtype="float32"), dev)
+    b = tvm_tirx.runtime.tensor(np.zeros(10, dtype="float32"), dev)
+    loaded(a, b)
+    tvm_tirx.testing.assert_allclose(b.numpy(), a.numpy() + 1)
+
+    # Exercise the generated error path that calls the FFI library directly.
+    wrong_shape = tvm_tirx.runtime.tensor(np.zeros(11, dtype="float32"), dev)
+    with pytest.raises(ValueError, match="shape"):
+        loaded(a, wrong_shape)
 
 
 if __name__ == "__main__":
