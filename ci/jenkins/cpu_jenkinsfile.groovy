@@ -57,6 +57,7 @@ stage('Test') {
         script: """${docker_run} ${images.ci_cpu} bash -euo pipefail -c '
             source ./tests/scripts/test_task_install_dist_wheels.sh
             ./tests/scripts/task_python_unittest.sh
+            ./tests/scripts/task_minimal_examples.sh cpu
           '""",
         label: 'Run Python unit tests',
       )

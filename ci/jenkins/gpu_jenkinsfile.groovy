@@ -66,6 +66,7 @@ parallel(
           script: """${docker_run} ${images.ci_gpu} bash -euo pipefail -c '
             source ./tests/scripts/test_task_install_dist_wheels.sh --group cuda
             ./tests/scripts/task_python_unittest_gpuonly.sh
+            ./tests/scripts/task_minimal_examples.sh cuda
           '""",
           label: 'Run Python GPU unit tests',
         )
