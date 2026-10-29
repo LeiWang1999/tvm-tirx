@@ -245,7 +245,7 @@ def test_lower_overflow_int32():
                 ty_args=[T.Tensor((822083584,), T.float32)],
             )
             if T.isnullptr(T_subtract.data):
-                T.throw_last_error(ty="int32")
+                T.throw_last_error()
             rxplaceholder_red_1 = T.decl_tensor(
                 rxplaceholder_red.data, ty_args=[T.Tensor((T.int64(32),), T.float32)]
             )
@@ -260,7 +260,7 @@ def test_lower_overflow_int32():
                     cse_v1: T.let[T.int32] = ax1 * 25690112 + ax2
                     T_subtract_1[cse_v1] = rxplaceholder_1[cse_v1] - rxplaceholder_red_1[ax1]
             if T.free_workspace(1, 0, T_subtract.data) != 0:
-                T.throw_last_error(ty="int32")
+                T.throw_last_error()
 
     After = tvm_tirx.tirx.transform.LowerTVMBuiltin()(Before)
     tvm_tirx.ir.assert_structural_equal(After, Expected)
@@ -290,11 +290,11 @@ def test_lower_device_allocate():
                 ty_args=[T.Tensor((16,), T.float32)],
             )
             if T.isnullptr(ptr.data):
-                T.throw_last_error(ty="int32")
+                T.throw_last_error()
             buf = T.decl_tensor(ptr.data, ty_args=[T.Tensor((16,), T.float32)])
             buf[0] = T.float32(0.0)
             if T.free_workspace(2, 0, ptr.data) != 0:
-                T.throw_last_error(ty="int32")
+                T.throw_last_error()
 
     After = tvm_tirx.tirx.transform.LowerTVMBuiltin()(Before)
     tvm_tirx.ir.assert_structural_equal(After, Expected)

@@ -285,7 +285,7 @@ def test_target_host_removed():
                     "TVMBackendSetDevice", 2, dev_id, ty="int32"
                 )
                 if set_device_status != 0:
-                    T.throw_last_error(ty="int32")
+                    T.throw_last_error()
                 with T.compute_scope("main_compute_"):
                     pass
                 return 0
