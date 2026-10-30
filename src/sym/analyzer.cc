@@ -313,10 +313,9 @@ bool AnalyzerObj::CanProve(const PrimExpr& expr, ProofStrength strength) {
     }
   }
 
-  // Z3 is an expensive best-effort fallback. Gate it behind the higher
-  // kSymbolicBound strength so the common kDefault path (including deeply
-  // recursive internal CanProve calls) never pays the prover cost.
-  if (strength >= ProofStrength::kSymbolicBound && z3_prover.CanProve(simplified)) {
+  // Native analysis runs first. Z3 is the final best-effort fallback at every
+  // strength, including default queries from recursive simplification.
+  if (z3_prover.CanProve(simplified)) {
     return true;
   }
   return false;

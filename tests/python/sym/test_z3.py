@@ -26,8 +26,8 @@ import tvm_tirx.testing
 from tvm_tirx import tirx
 from tvm_tirx.sym import Analyzer, ProofStrength
 
-# The Z3 prover is only consulted at the kSymbolicBound strength so the common
-# default path never pays the prover cost.
+# Both strengths use Z3 after native analysis; SYMBOLIC_BOUND additionally
+# enables symbolic interval reasoning.
 SB = ProofStrength.SYMBOLIC_BOUND
 
 
@@ -136,10 +136,9 @@ def test_z3_context_clone_lifetime():
 # ---------------------------------------------------------------------------
 # Examples the native analyzer cannot prove but Z3 can.
 #
-# Most cases assert both that the native analyzers (kDefault, Z3 gated off)
-# fail and that Z3 (kSymbolicBound) succeeds. This demonstrates the added value
-# of the Z3 backend and that it is correctly gated behind kSymbolicBound. Cases
-# the native analyzer learns to prove remain here as Z3 translation regressions.
+# These predicates can use Z3 at both DEFAULT and SYMBOLIC_BOUND. Cases the
+# native analyzer learns to prove remain here as translation regressions.
+# Wide signed arithmetic uses the existing no-overflow index-analysis model.
 # ---------------------------------------------------------------------------
 
 
@@ -158,7 +157,7 @@ def test_z3_floor_division_identity_constraint():
     analyzer_context.append(tvm_tirx.sym.PredicateConstraint(tirx.all(a > 0, b > 0, c > 0)))
     analyzer.sync_constraint_context(analyzer_context)
     try:
-        assert not analyzer.can_prove(expr)
+        assert analyzer.can_prove(expr)
         assert analyzer.can_prove(expr, SB)
     finally:
         analyzer_context = parent_context_1
@@ -195,7 +194,7 @@ def test_z3_multiplication_monotonicity():
     d = tirx.Var("d", "int32")
 
     expr = implies(tirx.all(a < b, b < c, a * d < b * d), b * d < c * d)
-    assert not analyzer.can_prove(expr)
+    assert analyzer.can_prove(expr)
     assert analyzer.can_prove(expr, SB)
 
 
@@ -255,7 +254,7 @@ def test_z3_select_absolute_value_nonneg():
 
     x = tirx.Var("x", "int32")
     expr = tirx.Select(x >= 0, x, -x) >= 0
-    assert not analyzer.can_prove(expr)
+    assert analyzer.can_prove(expr)
     assert analyzer.can_prove(expr, SB)
 
 
@@ -283,7 +282,7 @@ def test_z3_square_expansion_nonneg():
     analyzer_context.append(tvm_tirx.sym.PredicateConstraint(tirx.all(a >= 0, b >= 0)))
     analyzer.sync_constraint_context(analyzer_context)
     try:
-        assert not analyzer.can_prove(expr)
+        assert analyzer.can_prove(expr)
         assert analyzer.can_prove(expr, SB)
     finally:
         analyzer_context = parent_context_2
@@ -297,7 +296,7 @@ def test_z3_square_monotonicity():
     a = tirx.Var("a", "int32")
     b = tirx.Var("b", "int32")
     expr = implies(tirx.all(0 <= a, a <= b), a * a <= b * b)
-    assert not analyzer.can_prove(expr)
+    assert analyzer.can_prove(expr)
     assert analyzer.can_prove(expr, SB)
 
 
@@ -309,7 +308,7 @@ def test_z3_strict_multiplication():
     b = tirx.Var("b", "int32")
     d = tirx.Var("d", "int32")
     expr = implies(tirx.all(a < b, d > 0), a * d < b * d)
-    assert not analyzer.can_prove(expr)
+    assert analyzer.can_prove(expr)
     assert analyzer.can_prove(expr, SB)
 
 
@@ -321,8 +320,8 @@ def test_z3_floor_division_monotonicity():
     b = tirx.Var("b", "int32")
     c = tirx.Var("c", "int32")
     expr = implies(tirx.all(a <= b, c > 0), tirx.floordiv(a, c) <= tirx.floordiv(b, c))
-    assert not analyzer.can_prove(expr)
     analyzer.set_z3_rlimit(0)
+    assert analyzer.can_prove(expr)
     assert analyzer.can_prove(expr, SB)
 
 
@@ -333,7 +332,7 @@ def test_z3_floor_division_lower_bound():
     a = tirx.Var("a", "int32")
     b = tirx.Var("b", "int32")
     expr = implies(b > 0, tirx.floordiv(a, b) * b <= a)
-    assert not analyzer.can_prove(expr)
+    assert analyzer.can_prove(expr)
     assert analyzer.can_prove(expr, SB)
 
 
@@ -344,7 +343,7 @@ def test_z3_floor_modulo_range():
     a = tirx.Var("a", "int32")
     b = tirx.Var("b", "int32")
     expr = implies(b > 0, tirx.all(0 <= tirx.floormod(a, b), tirx.floormod(a, b) < b))
-    assert not analyzer.can_prove(expr)
+    assert analyzer.can_prove(expr)
     assert analyzer.can_prove(expr, SB)
 
 
@@ -368,8 +367,8 @@ def test_z3_flattened_index_bound():
     )
     analyzer.sync_constraint_context(analyzer_context)
     try:
-        assert not analyzer.can_prove(expr)
         analyzer.set_z3_rlimit(0)
+        assert analyzer.can_prove(expr)
         assert analyzer.can_prove(expr, SB)
     finally:
         analyzer_context = parent_context_3
@@ -395,7 +394,7 @@ def test_z3_modular_combination():
     )
     analyzer.sync_constraint_context(analyzer_context)
     try:
-        assert not analyzer.can_prove(expr)
+        assert analyzer.can_prove(expr)
         assert analyzer.can_prove(expr, SB)
     finally:
         analyzer_context = parent_context_4
@@ -407,7 +406,7 @@ def test_z3_square_non_negative():
     _require_z3(analyzer)
 
     a = tirx.Var("a", "int32")
-    assert not analyzer.can_prove(a * a >= 0)
+    assert analyzer.can_prove(a * a >= 0)
     assert analyzer.can_prove(a * a >= 0, SB)
 
 
@@ -417,7 +416,7 @@ def test_z3_min_max_average_bounds():
 
     a = tirx.Var("a", "int32")
     b = tirx.Var("b", "int32")
-    assert not analyzer.can_prove(tirx.max(a, b) * 2 >= a + b)
+    assert analyzer.can_prove(tirx.max(a, b) * 2 >= a + b)
     assert analyzer.can_prove(tirx.max(a, b) * 2 >= a + b, SB)
     assert analyzer.can_prove(tirx.min(a, b) * 2 <= a + b, SB)
 
@@ -438,8 +437,17 @@ def test_z3_symbolic_bind_range_with_constraint():
     analyzer_context.append(tvm_tirx.sym.PredicateConstraint(n <= 8))
     analyzer.sync_constraint_context(analyzer_context)
     try:
+        # Z3 does not restrict x to an empty range, and n <= 8 still permits
+        # n <= 0. Default fallback does not enable symbolic-bound analysis.
         assert not analyzer.can_prove(x < 8)
         assert analyzer.can_prove(x < 8, SB)
+        positive_context = analyzer_context.snapshot()
+        positive_context.append(tvm_tirx.sym.PredicateConstraint(n > 0))
+        analyzer.sync_constraint_context(positive_context)
+        try:
+            assert analyzer.can_prove(x < 8)
+        finally:
+            analyzer.sync_constraint_context(analyzer_context)
     finally:
         analyzer_context = parent_context_5
         analyzer.sync_constraint_context(analyzer_context)
@@ -452,7 +460,7 @@ def test_z3_equality_congruence():
     a = tirx.Var("a", "int32")
     b = tirx.Var("b", "int32")
     expr = implies(a == b, a * a == b * b)
-    assert not analyzer.can_prove(expr)
+    assert analyzer.can_prove(expr)
     assert analyzer.can_prove(expr, SB)
 
 
@@ -465,7 +473,7 @@ def test_z3_integer_strict_transitivity():
     c = tirx.Var("c", "int32")
     # Over the integers, a < b and b < c implies a + 1 < c.
     expr = implies(tirx.all(a < b, b < c), a + 1 < c)
-    assert not analyzer.can_prove(expr)
+    assert analyzer.can_prove(expr)
     assert analyzer.can_prove(expr, SB)
 
 
@@ -475,7 +483,7 @@ def test_z3_if_then_else_absolute_value():
 
     x = tirx.Var("x", "int32")
     expr = tirx.if_then_else(x >= 0, x, -x) >= 0
-    assert not analyzer.can_prove(expr)
+    assert analyzer.can_prove(expr)
     assert analyzer.can_prove(expr, SB)
 
 
@@ -484,7 +492,7 @@ def test_z3_unsigned_non_negative():
     _require_z3(analyzer)
 
     u = tirx.Var("u", "uint32")
-    assert not analyzer.can_prove(u >= 0)
+    assert analyzer.can_prove(u >= 0)
     assert analyzer.can_prove(u >= 0, SB)
 
 
@@ -494,7 +502,7 @@ def test_z3_unsigned64_non_negative():
     _require_z3(analyzer)
 
     u = tirx.Var("u", "uint64")
-    assert not analyzer.can_prove(u >= 0)
+    assert analyzer.can_prove(u >= 0)
     assert analyzer.can_prove(u >= 0, SB)
 
 
@@ -511,7 +519,7 @@ def test_z3_int64_square_expansion():
     analyzer_context.append(tvm_tirx.sym.PredicateConstraint(tirx.all(a >= 0, b >= 0)))
     analyzer.sync_constraint_context(analyzer_context)
     try:
-        assert not analyzer.can_prove(expr)
+        assert analyzer.can_prove(expr)
         assert analyzer.can_prove(expr, SB)
     finally:
         analyzer_context = parent_context_6
@@ -525,7 +533,7 @@ def test_z3_boolean_variable_reasoning():
     p = tirx.Var("p", "bool")
     q = tirx.Var("q", "bool")
     expr = implies(tirx.And(p, q), tirx.Or(p, q))
-    assert not analyzer.can_prove(expr)
+    assert analyzer.can_prove(expr)
     assert analyzer.can_prove(expr, SB)
 
 
@@ -536,7 +544,7 @@ def test_z3_not_equal_from_strict_less():
     x = tirx.Var("x", "int32")
     y = tirx.Var("y", "int32")
     expr = implies(x < y, tirx.NE(x, y))
-    assert not analyzer.can_prove(expr)
+    assert analyzer.can_prove(expr)
     assert analyzer.can_prove(expr, SB)
 
 
@@ -547,7 +555,7 @@ def test_z3_let_expression():
     y = tirx.Var("y", "int32")
     t = tirx.Var("t", "int32")
     let = tirx.Let(t, y * 2, t)
-    assert not analyzer.can_prove(let == y * 2)
+    assert analyzer.can_prove(let == y * 2)
     assert analyzer.can_prove(let == y * 2, SB)
 
 
@@ -884,26 +892,60 @@ def test_z3_repeated_can_prove_is_consistent():
     assert analyzer.can_prove(x >= 5, SB)
 
 
-def test_z3_is_gated_behind_symbolic_bound():
-    # The Z3 fallback must not run at the default strength.
+def test_z3_default_fallback_nonlinear_inequality():
     analyzer = Analyzer()
-    analyzer_context = tvm_tirx.sym.ConstraintContext()
-    _require_z3(analyzer)
+    x = tirx.Var("x", "int32")
+    y = tirx.Var("y", "int32")
+    # x*x + y*y - 2*x*y == (x-y)**2 >= 0 in the mathematical integer
+    # model used for wide signed indices. This does not model int32 overflow.
+    # A fresh analyzer must prove this without an option or explicit strength
+    # when Z3 is available. Native analysis alone cannot currently prove it.
+    expr = x * x + y * y >= 2 * (x * y)
+    assert analyzer.can_prove(expr) == analyzer.is_z3_enabled
+    assert analyzer.can_prove(x == x)
+    # Equality at x == y is a counterexample to the strict inequality.
+    assert not analyzer.can_prove(x * x + y * y > 2 * (x * y))
 
-    a = tirx.Var("a", "int32")
-    b = tirx.Var("b", "int32")
-    c = tirx.Var("c", "int32")
-    expr = ((b - a) // c) * c + a <= b
-    parent_context_11 = analyzer_context
-    analyzer_context = analyzer_context.snapshot()
-    analyzer_context.append(tvm_tirx.sym.PredicateConstraint(tirx.all(a > 0, b > 0, c > 0)))
-    analyzer.sync_constraint_context(analyzer_context)
+
+def test_z3_default_fallback_clone_preserves_independent_resource_limit():
+    analyzer = Analyzer()
+    _require_z3(analyzer)
+    x = tirx.Var("x", "int32")
+    y = tirx.Var("y", "int32")
+    expr = x * x + y * y >= 2 * (x * y)
+    analyzer.set_z3_rlimit(1)
+    cloned = analyzer.clone()
+    analyzer.set_z3_rlimit(0)
+    assert analyzer.can_prove(expr)
+    assert not cloned.can_prove(expr)
+    assert cloned.can_prove(x == x)
+    assert Analyzer().can_prove(expr)
+
+
+def test_z3_default_fallback_scopes_and_resource_limit():
+    analyzer = Analyzer()
+    _require_z3(analyzer)
+    x = tirx.Var("x", "int32")
+    positive_square = x * x > 0
+    # In the signed-index arithmetic model, x != 0 is sufficient and x == 0
+    # is a counterexample. The constraint must not survive its scope.
+    assert not analyzer.can_prove(positive_square)
+    parent_context = tvm_tirx.sym.ConstraintContext()
+    child_context = parent_context.snapshot()
+    child_context.append(tvm_tirx.sym.PredicateConstraint(x != 0))
+    analyzer.sync_constraint_context(child_context)
     try:
-        assert not analyzer.can_prove(expr, ProofStrength.DEFAULT)
-        assert analyzer.can_prove(expr, SB)
+        assert analyzer.can_prove(positive_square)
     finally:
-        analyzer_context = parent_context_11
-        analyzer.sync_constraint_context(analyzer_context)
+        analyzer.sync_constraint_context(parent_context)
+    assert not analyzer.can_prove(positive_square)
+
+    limited = Analyzer()
+    limited.set_z3_rlimit(1)
+    a, b = tirx.Var("a", "int32"), tirx.Var("b", "int32")
+    assert not limited.can_prove(a * a + b * b >= 2 * a * b)
+    # A native literal proof still succeeds before the exhausted SMT fallback.
+    assert limited.can_prove(a == a)
 
 
 # ---------------------------------------------------------------------------

@@ -323,14 +323,16 @@ class Analyzer(tvm_ffi.Object):
             The expression.
 
         strength: ProofStrength
-            The proof strength. When TVM is built with Z3 (``USE_Z3=ON``), the
-            optional Z3 fallback is only consulted at ``SYMBOLIC_BOUND`` or
-            higher, after the native analyzers fail to prove the predicate.
+            The proof strength. ``SYMBOLIC_BOUND`` additionally enables symbolic
+            bound analysis. When built with Z3 (``TVM_TIRX_USE_Z3=ON``), all
+            strengths, including ``DEFAULT``, try Z3 after native analysis fails
+            to prove the predicate. The existing Z3 timeout and resource limits
+            apply; an unknown solver result means the predicate cannot be proved.
 
         Returns
         -------
-        result : Expr
-            The result.
+        result : bool
+            Whether the predicate can be proved.
         """
         return _ffi_api.AnalyzerCanProve(self, expr, strength)
 
