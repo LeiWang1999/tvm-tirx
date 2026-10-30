@@ -78,7 +78,7 @@ enum DivMode {
  * analysis and only use it at top-level simplification to avoid speed issues.
  */
 enum class ProofStrength : int {
-  /*! \brief Default simplification-based proof, suitable for recursive analysis. */
+  /*! \brief Default analysis followed by the optional Z3 fallback. */
   kDefault = 0,
   /*!
    * \brief Prove using symbolic bound analysis
@@ -651,13 +651,15 @@ class TVM_TIRX_DLL AnalyzerObj : public ffi::Object {
    * \brief Attempt to prove a condition under the current premises.
    *
    * \param cond The expression to be proved.
-   * \param strength Proof effort; stronger modes may use symbolic bounds and optional Z3.
+   * \param strength Proof effort; kSymbolicBound additionally enables symbolic bound analysis.
    *
    * \return True if proved; false includes unsupported or inconclusive queries.
    *
    * \note Analyzer will call into sub-analyzers to get the result.
    * Do not use strength beyond default in sub-analyzers and
    * only use it in top-level predicate analysis.
+   * When built with Z3, all strengths try it after native analysis fails.
+   * Z3's existing resource limit and timeout apply; unknown means cannot prove.
    */
   bool CanProve(const PrimExpr& cond, ProofStrength strength = ProofStrength::kDefault);
 

@@ -1814,9 +1814,7 @@ if __name__ == "__main__":
 
 
 def test_allow_uint_as_index():
-    """Opt-in no-overflow domain: unsigned index terms are not analyzed by
-    default; within allow_uint_as_index() the signed rule set applies and the
-    swizzle-style floordiv-quotient bit checks over uint32 offsets discharge."""
+    """The no-overflow rewrite rules for unsigned indices are scoped."""
     w = tirx.Var("w", "int32")
     lane = tirx.Var("lane", "int32")
     x = tirx.Var("x", "uint32")
@@ -1836,18 +1834,24 @@ def test_allow_uint_as_index():
         + (lane % 8 * 64).astype("uint32")
     )
     check = flm(fld(s_off, T.uint32(512)), T.uint32(2))
-    assert not analyzer.can_prove_equal(check, 0)
+    # Default queries may now use Z3 without this mode. Inspect native
+    # rewriting to test the scope of the no-overflow rewrite rules.
+    unscoped = analyzer.rewrite_simplify(check)
+    assert not tvm_ffi.structural_equal(unscoped, T.uint32(0))
     # a non-pow2 divisor never folds, inside or outside the mode... unless
     # the flag is on: under the no-overflow assertion any c2 != 0 works.
     np2 = flm(x * T.uint32(12), T.uint32(12))
-    assert not analyzer.can_prove_equal(np2, 0)
+    assert not tvm_ffi.structural_equal(analyzer.rewrite_simplify(np2), T.uint32(0))
     with tvm_tirx.sym.allow_uint_as_index():
+        assert not tvm_ffi.structural_equal(analyzer.rewrite_simplify(check), unscoped)
         assert analyzer.can_prove_equal(check, 0)
         assert analyzer.can_prove_equal(flm(fld(s_off, T.uint32(32)), T.uint32(2)), 0)
+        assert tvm_ffi.structural_equal(analyzer.rewrite_simplify(np2), T.uint32(0))
         assert analyzer.can_prove_equal(np2, 0)
         # nested scopes compose
         with tvm_tirx.sym.allow_uint_as_index():
             assert analyzer.can_prove_equal(check, 0)
         assert analyzer.can_prove_equal(check, 0)
     # the mode is scoped: disabled again afterwards
-    assert not analyzer.can_prove_equal(check, 0)
+    assert tvm_ffi.structural_equal(analyzer.rewrite_simplify(check), unscoped)
+    assert not tvm_ffi.structural_equal(analyzer.rewrite_simplify(np2), T.uint32(0))
