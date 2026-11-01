@@ -113,6 +113,40 @@ fn bounds_and_simplification() {
 }
 
 #[test]
+fn z3_fallback_is_opt_in_and_cloned() {
+    let analyzer = Analyzer::new();
+    let x = var("x");
+    let y = var("y");
+    let lhs = op("prim._OpAdd", op("prim._OpMul", &x, &x), op("prim._OpMul", &y, &y));
+    let rhs = op("prim._OpMul", int32(2), op("prim._OpMul", &x, &y));
+    let predicate = op("prim._OpGE", lhs, rhs);
+    let has_z3 = analyzer.is_z3_enabled().unwrap();
+
+    assert!(!analyzer.can_prove(&predicate, ProofStrength::Default).unwrap());
+    assert_eq!(analyzer.can_prove(&predicate, ProofStrength::SymbolicBound).unwrap(), has_z3);
+    let unconfigured_copy = analyzer.deep_clone().unwrap();
+    analyzer.enable_z3_fallback().unwrap();
+    assert_eq!(analyzer.can_prove(&predicate, ProofStrength::Default).unwrap(), has_z3);
+    let copy = analyzer.deep_clone().unwrap();
+    analyzer.disable_z3_fallback().unwrap();
+    let disabled_copy = analyzer.deep_clone().unwrap();
+    for current in [&analyzer, &disabled_copy] {
+        assert!(!current.can_prove(&predicate, ProofStrength::Default).unwrap());
+        assert!(!current.can_prove(&predicate, ProofStrength::SymbolicBound).unwrap());
+    }
+    assert_eq!(copy.can_prove(&predicate, ProofStrength::Default).unwrap(), has_z3);
+    assert_eq!(copy.can_prove(&predicate, ProofStrength::SymbolicBound).unwrap(), has_z3);
+    assert!(!unconfigured_copy.can_prove(&predicate, ProofStrength::Default).unwrap());
+    assert_eq!(
+        unconfigured_copy.can_prove(&predicate, ProofStrength::SymbolicBound).unwrap(),
+        has_z3
+    );
+    disabled_copy.enable_z3_fallback().unwrap();
+    assert_eq!(disabled_copy.can_prove(&predicate, ProofStrength::SymbolicBound).unwrap(), has_z3);
+    assert!(!analyzer.can_prove(&predicate, ProofStrength::SymbolicBound).unwrap());
+}
+
+#[test]
 fn contexts_restore_parent_facts() {
     let analyzer = Analyzer::new();
     let x = var("x");

@@ -313,9 +313,10 @@ bool AnalyzerObj::CanProve(const PrimExpr& expr, ProofStrength strength) {
     }
   }
 
-  // Native analysis runs first. Z3 is the final best-effort fallback at every
-  // strength, including default queries from recursive simplification.
-  if (z3_prover.CanProve(simplified)) {
+  // An unconfigured analyzer follows proof strength; explicit disable covers
+  // every strength, including queries reached through native helpers.
+  bool use_z3 = z3_fallback_.value_or(strength >= ProofStrength::kSymbolicBound);
+  if (use_z3 && z3_prover.CanProve(simplified)) {
     return true;
   }
   return false;
@@ -351,6 +352,7 @@ Analyzer AnalyzerObj::Clone() const {
   cloned->int_set.CopyFrom(this->int_set);
   cloned->z3_prover.CopyFrom(this->z3_prover);
   cloned->last_snapshot_ = last_snapshot_;
+  cloned->z3_fallback_ = z3_fallback_;
   return cloned;
 }
 
@@ -360,6 +362,8 @@ TVM_FFI_STATIC_INIT_BLOCK() {
   refl::GlobalDef()
       .def("sym.Analyzer", []() { return Analyzer(); })
       .def("sym.AnalyzerClone", [](Analyzer analyzer) { return analyzer->Clone(); })
+      .def_method("sym.AnalyzerEnableZ3Fallback", &AnalyzerObj::EnableZ3Fallback)
+      .def_method("sym.AnalyzerDisableZ3Fallback", &AnalyzerObj::DisableZ3Fallback)
       .def_method("sym.AnalyzerSyncConstraintContext", &AnalyzerObj::SyncConstraintContext)
       .def_method("sym.AnalyzerGetConstraintContext", &AnalyzerObj::GetConstraintContext)
       .def("sym.AnalyzerConstIntBound",

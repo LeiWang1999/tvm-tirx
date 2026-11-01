@@ -629,8 +629,22 @@ def RenormalizeSplitPattern():
     return _ffi_api.RenormalizeSplitPattern()  # type: ignore
 
 
-def StmtSimplify():
+def StmtSimplify(enable_z3: bool | None = None):
     """Run statement-level arithmetic simplifications on the TIR Function.
+
+    Parameters
+    ----------
+    enable_z3 : bool | None
+        Z3 fallback policy for the analyzers owned by this pass. ``None`` keeps
+        the default policy: DEFAULT queries do not use Z3, while SYMBOLIC_BOUND
+        queries may fall back to it. ``True`` enables fallback at every proof
+        strength, and ``False`` disables it at every strength. Native analysis
+        is always tried first. Enabling fallback has no effect in a build
+        without Z3.
+
+        The policy applies to proof queries reached by existing simplification
+        rules; it does not request SMT proofs of every boolean expression.
+        Each function gets its own analyzer, and other passes are unaffected.
 
     Returns
     -------
@@ -665,7 +679,7 @@ def StmtSimplify():
 
         tvm.ir.assert_structural_equal(run_pass(), Expected)
     """
-    return _ffi_api.StmtSimplify()  # type: ignore
+    return _ffi_api.StmtSimplify(enable_z3)  # type: ignore
 
 
 def LowerThreadAllreduce():

@@ -135,9 +135,13 @@ TVM_TIRX_DLL Pass RenormalizeSplitPattern();
 /*!
  * \brief Run statement-level arithmetic simplifications on the TIR Function.
  *
+ * \param enable_z3 Override Z3 fallback for this pass's analyzers. std::nullopt keeps
+ * the strength-based default, true enables fallback, and false disables fallback
+ * at every proof strength. Native analysis is always tried first.
+ *
  * \return The pass.
  */
-TVM_TIRX_DLL Pass StmtSimplify();
+TVM_TIRX_DLL Pass StmtSimplify(ffi::Optional<bool> enable_z3 = std::nullopt);
 
 /*!
  * \brief Convert an IRModule to be SSA form.

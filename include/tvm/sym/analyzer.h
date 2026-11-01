@@ -36,6 +36,7 @@
 #include <functional>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -570,6 +571,23 @@ class TVM_TIRX_DLL AnalyzerObj : public ffi::Object {
   /*! \brief Construct an analyzer with no accepted premises and default query settings. */
   AnalyzerObj();
   /*!
+   * \brief Enable Z3 fallback on this analyzer after native analysis fails.
+   *
+   * A fresh analyzer permits fallback only at kSymbolicBound. Enabling also
+   * permits default-strength CanProve calls, including nested queries, to try Z3.
+   * Existing facts and solver state are retained, and the solver is still created lazily.
+   * This has no effect in builds without Z3.
+   */
+  void EnableZ3Fallback() { z3_fallback_ = true; }
+  /*!
+   * \brief Disable Z3 fallback for all CanProve strengths on this analyzer.
+   *
+   * Includes kSymbolicBound and CanProve calls reached through native helpers.
+   * Native symbolic-bound analysis, existing facts, and solver state are retained.
+   * Direct z3_prover queries are not affected by this policy.
+   */
+  void DisableZ3Fallback() { z3_fallback_ = false; }
+  /*!
    * \brief Synchronize all derived facts to the supplied premise environment.
    *
    * Unchanged positions need no replay; recognized additive prefixes update
@@ -658,7 +676,10 @@ class TVM_TIRX_DLL AnalyzerObj : public ffi::Object {
    * \note Analyzer will call into sub-analyzers to get the result.
    * Do not use strength beyond default in sub-analyzers and
    * only use it in top-level predicate analysis.
-   * When built with Z3, all strengths try it after native analysis fails.
+   * A fresh analyzer permits Z3 fallback only at kSymbolicBound. EnableZ3Fallback
+   * also permits it for default-strength queries, including nested queries.
+   * DisableZ3Fallback disables it for every strength without disabling native
+   * symbolic-bound analysis. Native analysis always runs first.
    * Z3's existing resource limit and timeout apply; unknown means cannot prove.
    */
   bool CanProve(const PrimExpr& cond, ProofStrength strength = ProofStrength::kDefault);
@@ -684,6 +705,7 @@ class TVM_TIRX_DLL AnalyzerObj : public ffi::Object {
    * and query settings on either analyzer do not affect the other. Premise and
    * expression nodes are shared and must not be mutated through aliases.
    * Query scratch, solver instances, and accumulated statistics are not copied.
+   * The Z3 fallback policy and solver limits are copied.
    * Copying an Analyzer handle alone instead shares the same mutable state.
    *
    * \return A new analyzer with independent backend state and the same accepted premises.
@@ -720,6 +742,8 @@ class TVM_TIRX_DLL AnalyzerObj : public ffi::Object {
   bool synchronizing_{false};
   // Nested query count; synchronization requires zero active queries.
   int active_queries_{0};
+  // Unset follows proof strength; explicit false disables every strength.
+  std::optional<bool> z3_fallback_;
 };
 
 /*!

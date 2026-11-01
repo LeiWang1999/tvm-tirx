@@ -311,7 +311,16 @@ pub fn split_host_device() -> Result<Pass> {
 
 /// Run statement-level arithmetic simplifications (`tirx.transform.StmtSimplify`).
 pub fn stmt_simplify() -> Result<Pass> {
-    tvm_ffi::cached_global_func!("tirx.transform.StmtSimplify").call_tuple(())?.try_into()
+    stmt_simplify_with_z3(None)
+}
+
+/// Run statement simplification with a pass-local Z3 fallback policy.
+///
+/// `None` preserves the strength-based default. `Some(true)` enables fallback,
+/// and `Some(false)` disables it at every proof strength. Native analysis runs
+/// first, and enabling fallback has no effect in a build without Z3.
+pub fn stmt_simplify_with_z3(enable_z3: Option<bool>) -> Result<Pass> {
+    tvm_ffi::cached_global_func!("tirx.transform.StmtSimplify").call_tuple((enable_z3,))?.try_into()
 }
 
 /// Plan storage by moving allocations and reusing compatible storage

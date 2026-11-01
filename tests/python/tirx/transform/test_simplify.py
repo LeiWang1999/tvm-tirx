@@ -129,6 +129,90 @@ def _apply_simplify(func):
     return tvm_tirx.tirx.transform.StmtSimplify()(InputModule)["main"]
 
 
+@pytest.fixture
+def z3_simplify_case():
+    @T.function(private=True)
+    def before(A: T.Tensor((9, 16, 2), "bool")):
+        for x in T.serial(-4, 5):
+            for y in T.serial(16):
+                if y * y < 64:
+                    A[x + 4, y, 0] = 8 * x + y < 16
+                A[x + 4, y, 1] = 8 * x + y < 16
+
+    @T.function(private=True)
+    def native_expected(A: T.Tensor((9, 16, 2), "bool")):
+        for x in T.serial(-4, 5):
+            for y in T.serial(16):
+                if y * y < 64:
+                    A[x + 4, y, 0] = x * 8 + y < 16
+                A[x + 4, y, 1] = x * 8 + y < 16
+
+    @T.function(private=True)
+    def z3_expected(A: T.Tensor((9, 16, 2), "bool")):
+        for x in T.serial(-4, 5):
+            for y in T.serial(16):
+                if y * y < 64:
+                    A[x + 4, y, 0] = x < 2
+                A[x + 4, y, 1] = x * 8 + y < 16
+
+    return tvm_tirx.IRModule({"main": before}), native_expected, z3_expected
+
+
+@pytest.mark.parametrize("enable_z3", [None, True, False])
+def test_stmt_simplify_z3_fallback(enable_z3, z3_simplify_case):
+    """The nonlinear premise helps only inside its branch, and only with Z3.
+
+    Outside the branch, x=1,y=8 makes the original comparison false and x<2
+    true. The pass must keep that comparison after leaving the premise scope.
+    All loop values and arithmetic intermediates fit in int32.
+    """
+    module, native_expected, z3_expected = z3_simplify_case
+    after = tvm_tirx.tirx.transform.StmtSimplify(enable_z3=enable_z3)(module)["main"]
+    has_z3 = tvm_tirx.sym.Analyzer().is_z3_enabled
+    expected = z3_expected if enable_z3 is True and has_z3 else native_expected
+    tvm_tirx.ir.assert_structural_equal(after, expected)
+    tvm_tirx.tirx.analysis.check_well_formed(after)
+
+
+@pytest.mark.parametrize("enable_z3", [None, True, False])
+def test_stmt_simplify_z3_preserves_native_rules(enable_z3):
+    @T.function(private=True)
+    def before(A: T.Tensor((9, 8), "bool")):
+        for x in T.serial(-4, 5):
+            for y in T.serial(8):
+                A[x + 4, y] = 8 * x + y < 16
+
+    @T.function(private=True)
+    def expected(A: T.Tensor((9, 8), "bool")):
+        for x in T.serial(-4, 5):
+            for y in T.serial(8):
+                A[x + 4, y] = x < 2
+
+    after = tvm_tirx.tirx.transform.StmtSimplify(enable_z3=enable_z3)(
+        tvm_tirx.IRModule({"main": before})
+    )["main"]
+    tvm_tirx.ir.assert_structural_equal(after, expected)
+
+
+def test_stmt_simplify_z3_is_pass_local(z3_simplify_case):
+    module, native_expected, z3_expected = z3_simplify_case
+    enabled = tvm_tirx.tirx.transform.StmtSimplify(enable_z3=True)
+    disabled = tvm_tirx.tirx.transform.StmtSimplify(enable_z3=False)
+    default = tvm_tirx.tirx.transform.StmtSimplify()
+    enabled_expected = z3_expected if tvm_tirx.sym.Analyzer().is_z3_enabled else native_expected
+
+    # Reusing passes must not carry either the policy or scoped facts to other runs.
+    for current, expected in [
+        (default, native_expected),
+        (enabled, enabled_expected),
+        (default, native_expected),
+        (disabled, native_expected),
+        (enabled, enabled_expected),
+        (tvm_tirx.tirx.transform.StmtSimplify(), native_expected),
+    ]:
+        tvm_tirx.ir.assert_structural_equal(current(module)["main"], expected)
+
+
 def test_load_store_noop():
     """Store of a value that was just read from the same location is a no-op."""
 

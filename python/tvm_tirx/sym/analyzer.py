@@ -92,6 +92,28 @@ class Analyzer(tvm_ffi.Object):
     def __init__(self):
         self.__init_handle_by_constructor__(_ffi_api.Analyzer)
 
+    def enable_z3_fallback(self) -> None:
+        """Enable Z3 fallback on this analyzer after native analysis fails.
+
+        A fresh analyzer permits fallback only at ``SYMBOLIC_BOUND``. Enabling
+        also permits default-strength ``can_prove`` calls, including nested
+        queries, to try Z3.
+
+        Existing facts and solver state are retained. The solver is still
+        created lazily, and its timeout and resource limits apply. This has
+        no effect when the build does not include Z3.
+        """
+        _ffi_api.AnalyzerEnableZ3Fallback(self)
+
+    def disable_z3_fallback(self) -> None:
+        """Disable Z3 fallback for all proof strengths on this analyzer.
+
+        Includes ``SYMBOLIC_BOUND`` and recursive ``can_prove`` calls reached
+        through native helpers. Native symbolic-bound analysis, existing facts,
+        and solver state are retained. This does not change build capabilities.
+        """
+        _ffi_api.AnalyzerDisableZ3Fallback(self)
+
     @property
     def is_z3_enabled(self) -> bool:
         """Whether this build includes the Z3 backend (``USE_Z3=ON``).
@@ -250,6 +272,8 @@ class Analyzer(tvm_ffi.Object):
         constraints and transitive comparisons) as this one, but owns its own
         state: synchronizing or simplifying either analyzer afterwards does not
         affect the other. Unlike copying the handle, this is a true deep copy.
+        Query settings, including the Z3 fallback policy and solver limits,
+        are copied and can subsequently be changed independently.
 
         Returns
         -------
@@ -324,10 +348,13 @@ class Analyzer(tvm_ffi.Object):
 
         strength: ProofStrength
             The proof strength. ``SYMBOLIC_BOUND`` additionally enables symbolic
-            bound analysis. When built with Z3 (``TVM_TIRX_USE_Z3=ON``), all
-            strengths, including ``DEFAULT``, try Z3 after native analysis fails
-            to prove the predicate. The existing Z3 timeout and resource limits
-            apply; an unknown solver result means the predicate cannot be proved.
+            bound analysis. A fresh analyzer permits Z3 fallback only at
+            ``SYMBOLIC_BOUND``. :py:meth:`enable_z3_fallback` also permits it for
+            default-strength queries, including nested queries, while
+            :py:meth:`disable_z3_fallback` disables it for every strength.
+            Native analysis always runs first. Fallback requires a build with
+            Z3 and respects its timeout and resource limits; an unknown solver
+            result means the predicate cannot be proved.
 
         Returns
         -------

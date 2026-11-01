@@ -517,6 +517,7 @@ impl Analyzer {
     }
 
     /// Whether `expr` is provably true (`sym.AnalyzerCanProve`).
+    /// Native analysis runs first; Z3 fallback follows this analyzer's policy.
     pub fn can_prove(&self, expr: impl IntoExpr, strength: ProofStrength) -> Result<bool> {
         tvm_ffi::cached_global_func!("sym.AnalyzerCanProve")
             .call_tuple((self, &expr.into_expr()?, strength as i32))?
@@ -541,6 +542,23 @@ impl Analyzer {
     /// Whether the analyzer was built with the Z3 prover (`sym.AnalyzerIsZ3Enabled`).
     pub fn is_z3_enabled(&self) -> Result<bool> {
         tvm_ffi::cached_global_func!("sym.AnalyzerIsZ3Enabled").call_tuple((self,))?.try_into()
+    }
+
+    /// Enable Z3 fallback after native analysis fails on this analyzer.
+    ///
+    /// A fresh analyzer permits fallback only at `SymbolicBound`. Enabling also
+    /// permits default-strength queries, including nested queries. Preserves facts and solver state;
+    /// has no effect in builds without Z3. Deep clones inherit the setting independently.
+    pub fn enable_z3_fallback(&self) -> Result<()> {
+        tvm_ffi::cached_global_func!("sym.AnalyzerEnableZ3Fallback").call_tuple((self,))?;
+        Ok(())
+    }
+
+    /// Disable Z3 fallback for every proof strength, including `SymbolicBound`.
+    /// Native symbolic-bound analysis, facts, and solver state are retained.
+    pub fn disable_z3_fallback(&self) -> Result<()> {
+        tvm_ffi::cached_global_func!("sym.AnalyzerDisableZ3Fallback").call_tuple((self,))?;
+        Ok(())
     }
 
     /// The facts the Z3 prover knows, and `expr` to prove if given, as an SMT-LIB2 script
