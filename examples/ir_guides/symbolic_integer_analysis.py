@@ -49,6 +49,7 @@ def add_one_1d(A: T.Tensor((n, 4), T.float32), B: T.Tensor((n, 4), T.float32)):
 from tvm_tirx import ir, sym
 
 analyzer = sym.Analyzer()
+analyzer.enable_z3_fallback()
 loop_1d = add_one_1d.body.seq[-1]  # follows the two decl_tensor statements
 index = loop_1d.body.seq[0].indices[0]  # i // 4 * 4 + i % 4
 print(analyzer.simplify(index))
@@ -111,6 +112,7 @@ def add_one_guarded(A: T.Tensor((n, 4), T.float32), B: T.Tensor((n, 4), T.float3
 from tvm_tirx import tirx
 
 guard_analyzer = sym.Analyzer()
+guard_analyzer.enable_z3_fallback()
 proven = []
 
 
