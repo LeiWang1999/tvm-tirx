@@ -209,9 +209,16 @@ class BaseFunc : public Expr {
 /*!
  * \brief Generic attribute names that can be attached to any function.
  *
- * \sa tvm::tirx::attr, tvm::relax::attr
+ * \sa tvm::tirx::attr
  */
 namespace attr {
+/*!
+ * \brief Whether this function is a declaration.
+ *
+ * Type: bool
+ */
+inline constexpr ffi::reflection::AttrKey<bool> kDeclaration{"declaration"};
+
 /*!
  * \brief Indicates the special calling convention.
  *
